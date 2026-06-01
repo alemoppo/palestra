@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Palestra</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+       background: #f5f5f5; color: #222; padding-bottom: 80px; }
+h1 { font-size: 22px; text-align: center; padding: 16px; background: #2F5496; color: #fff; position: sticky; top: 0; z-index: 10; }
+.tabs { display: flex; background: #2F5496; padding: 0 8px 8px; gap: 4px; position: sticky; top: 54px; z-index: 10; }
+.tab { flex: 1; text-align: center; padding: 8px; color: #ffffffcc; border-radius: 8px 8px 0 0; cursor: pointer; font-size: 13px; font-weight: 600; }
+.tab.active { background: #f5f5f5; color: #2F5496; }
+.tab-cont { display: none; padding: 12px; }
+.tab-cont.active { display: block; }
+.card { background: #fff; border-radius: 10px; padding: 14px; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,.1); }
+.card h3 { font-size: 16px; margin-bottom: 8px; color: #333; }
+input[type="text"] { width: 100%; padding: 8px 10px; border: 1px solid #ccc; border-radius: 6px; font-size: 15px; }
+input:focus { outline: none; border-color: #2F5496; }
+.ex-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.ex-row .ex-cb { width: 20px; height: 20px; cursor: pointer; flex-shrink: 0; accent-color: #2F5496; }
+.ex-row .ex-name { flex: 1; font-size: 14px; font-weight: 500; }
+.ex-row .ex-name.dim { color: #bbb; }
+.ex-row input { width: 100px; text-align: center; flex-shrink: 0; }
+.btn { display: inline-block; padding: 10px 20px; border: none; border-radius: 8px; font-size: 15px; font-weight: 600; cursor: pointer; }
+.btn-primary { background: #2F5496; color: #fff; width: 100%; }
+.btn-primary:active { background: #1d3a6e; }
+.btn-sm { padding: 6px 12px; font-size: 13px; }
+.btn-danger { background: #d32f2f; color: #fff; }
+.btn-outline { background: transparent; border: 1.5px solid #2F5496; color: #2F5496; }
+.btn-outline:active { background: #e8edf5; }
+.day-header { font-size: 20px; font-weight: 700; margin-bottom: 4px; }
+.day-sub { font-size: 13px; color: #777; margin-bottom: 14px; }
+.config-day { margin-bottom: 16px; }
+.config-day h4 { font-size: 15px; margin-bottom: 6px; padding: 6px 10px; border-radius: 6px; }
+.config-day h4.c1 { background: #D6E4F0; color: #2F5496; }
+.config-day h4.c2 { background: #E2EFDA; color: #548235; }
+.config-day h4.c3 { background: #FCE4D6; color: #C55A11; }
+.config-ex { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.config-ex input { flex: 1; }
+.config-ex .btn { flex-shrink: 0; }
+.add-ex-btn { margin-top: 4px; }
+.summary-wrap { overflow-x: auto; }
+.summary-table { border-collapse: collapse; font-size: 12px; width: max-content; min-width: 100%; }
+.summary-table th, .summary-table td { border: 1px solid #ccc; padding: 5px 8px; text-align: center; white-space: nowrap; }
+.summary-table th { background: #2F5496; color: #fff; font-weight: 600; position: sticky; top: 0; }
+.summary-table .ex-name { text-align: left; font-weight: 500; position: sticky; left: 0; background: #fff; z-index: 2; }
+.summary-table .ex-name.sticky { z-index: 3; }
+.summary-table .grp-header { font-weight: 700; text-align: left; }
+.summary-table .grp-header.g1 { background: #D6E4F0; color: #2F5496; }
+.summary-table .grp-header.g2 { background: #E2EFDA; color: #548235; }
+.summary-table .grp-header.g3 { background: #FCE4D6; color: #C55A11; }
+.summary-table .grp-header td:first-child { position: sticky; left: 0; z-index: 2; }
+.summary-table .grp-header.g1 td:first-child { background: #D6E4F0; }
+.summary-table .grp-header.g2 td:first-child { background: #E2EFDA; }
+.summary-table .grp-header.g3 td:first-child { background: #FCE4D6; }
+.summary-table .inc { background: #FFA500 !important; font-weight: 700; }
+.summary-table .no-data { color: #bbb; }
+.wo-msg { margin-top:8px; font-size:13px; color:#2F5496; text-align:center; }
+#welcome { position: fixed; inset: 0; background: #f5f5f5; z-index: 100; display: none; flex-direction: column; justify-content: center; align-items: center; padding: 32px; text-align: center; }
+#welcome h2 { font-size: 24px; color: #2F5496; margin-bottom: 16px; }
+#welcome .btn { margin-bottom: 10px; max-width: 260px; }
+#app { display: none; }
+</style>
+</head>
+<body>
+
+<div id="welcome">
+  <h2>&#x1F4AA; Palestra</h2>
+  <button class="btn btn-primary" onclick="loadFile()">Carica file JSON</button>
+  <p style="margin-top:32px;font-size:11px;color:#ccc"><a href="#" onclick="startFresh();return false" style="color:#ccc;text-decoration:none;border-bottom:1px dotted #ccc">oppure inizia una sessione vuota</a></p>
+</div>
+
+<div id="app">
+<h1>&#x1F4AA; Palestra</h1>
+
+<div class="tabs">
+  <div class="tab active" data-tab="workout">Allenamento</div>
+  <div class="tab" data-tab="config">Configurazione</div>
+  <div class="tab" data-tab="summary">Riepilogo</div>
+</div>
+
+<div class="tab-cont active" id="tab-workout">
+  <div class="card">
+    <div class="day-header" id="wo-day-title">Giorno 1</div>
+    <div class="day-sub" id="wo-day-sub">caricamento...</div>
+    <div id="wo-ex-list"></div>
+    <button class="btn btn-primary" onclick="saveWorkout()">Salva Allenamento</button>
+    <div class="wo-msg" id="wo-msg"></div>
+  </div>
+</div>
+
+<div class="tab-cont" id="tab-config">
+  <div class="card">
+    <p style="font-size:13px;color:#666;margin-bottom:10px">Aggiungi o rimuovi esercizi per ogni giorno. I cambiamenti non cancellano la cronologia.</p>
+    <div id="config-days"></div>
+    <button class="btn btn-primary" onclick="saveConfig()">Salva Configurazione</button>
+    <div class="wo-msg" id="cfg-msg"></div>
+  </div>
+  <div class="card">
+    <h3>Backup dati</h3>
+    <p style="font-size:13px;color:#666;margin-bottom:10px">Esporta il file JSON per backup o trasferimento.</p>
+    <button class="btn btn-outline" style="width:100%" onclick="exportData()">&#x2193; Esporta file JSON</button>
+    <button class="btn btn-outline" style="width:100%;margin-top:6px" onclick="loadFile()">&#x2191; Importa file JSON</button>
+    <div class="wo-msg" id="bak-msg"></div>
+  </div>
+</div>
+
+<div class="tab-cont" id="tab-summary">
+  <div class="card">
+    <div class="summary-wrap" id="summary-wrap"></div>
+  </div>
+  <div class="card">
+    <div style="display:flex;gap:6px">
+      <button class="btn btn-outline" style="flex:1" onclick="exportData()">&#x2193; Esporta</button>
+      <button class="btn btn-outline" style="flex:1" onclick="loadFile()">&#x2191; Importa</button>
+    </div>
+    <div class="wo-msg" id="sum-msg"></div>
+  </div>
+</div>
+</div>
+
+<script>
+// ============= ANDROID BRIDGE =============
+const isAndroid = typeof Android !== 'undefined' && Android !== null;
+
+function persistData() {
+  if (isAndroid) {
+    try { Android.saveData(JSON.stringify(data)); } catch(e) { console.error(e); }
+  }
+}
+
+let data = null;
+
+function defaultData() {
+  return {
+    days: [
+      { name: 'Giorno 1 \u2013 Petto & Bicipiti', exercises: ['Chest Press (panca piana)', 'Incline Press 30\u00b0 (manubri)', 'Pec Fly', 'Bilanciere EZ', 'Bicipiti Curl (manubri seduto)'] },
+      { name: 'Giorno 2 \u2013 Gambe & Spalle', exercises: ['Hack Squat / Pressa', 'Leg Extension', 'Leg Curl', 'Spinte in alto (manubri 75\u00b0)', 'Alzate laterali'] },
+      { name: 'Giorno 3 \u2013 Dorso & Tricipiti', exercises: ['Trazioni assistite', 'Lat Machine', 'Pulley', 'Pesi dietro schiena', 'Pushdown ai cavi'] },
+    ],
+    workouts: []
+  };
+}
+
+function loadFromBridge() {
+  if (!isAndroid) { showWelcome(); return; }
+  try {
+    const json = Android.loadData();
+    if (json) {
+      data = JSON.parse(json);
+      enterApp();
+    } else {
+      data = defaultData();
+      persistData();
+      enterApp();
+    }
+  } catch(e) {
+    data = defaultData();
+    enterApp();
+  }
+}
+
+function startFresh() {
+  data = defaultData();
+  enterApp();
+}
+
+function loadFile() {
+  const input = document.createElement('input');
+  input.type = 'file'; input.accept = '.json';
+  input.onchange = (e) => {
+    const file = e.target.files[0]; if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const imported = JSON.parse(e.target.result);
+        if (!imported.days || !imported.workouts) throw new Error('Formato non valido');
+        data = imported;
+        enterApp();
+        persistData();
+      } catch(err) { alert('Errore: ' + err.message); }
+    };
+    reader.readAsText(file);
+  };
+  input.click();
+}
+
+function showWelcome() {
+  document.getElementById('welcome').style.display = 'flex';
+}
+
+function enterApp() {
+  document.getElementById('welcome').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  renderWorkout();
+  renderConfig();
+}
+
+function downloadJSON() {
+  if (isAndroid) {
+    const json = JSON.stringify(data, null, 2);
+    Android.exportToDownloads(json);
+  } else {
+    const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    const now = new Date();
+    a.download = 'palestra-data-' + now.toISOString().slice(0,10) + '.json';
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
+  }
+}
+
+// ============= TABS =============
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-cont').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+    if (tab.dataset.tab === 'workout') renderWorkout();
+    if (tab.dataset.tab === 'summary') renderSummary();
+  });
+});
+
+// ============= WORKOUT =============
+function getNextDay() {
+  const ws = data.workouts;
+  if (ws.length === 0) return 1;
+  return ((ws[ws.length - 1].day) % 3) + 1;
+}
+
+function getLastWorkoutForDay(day) {
+  for (let i = data.workouts.length - 1; i >= 0; i--)
+    if (data.workouts[i].day === day) return data.workouts[i];
+  return null;
+}
+
+function renderWorkout() {
+  if (!data) return;
+  const dayNum = getNextDay();
+  const dayIdx = dayNum - 1;
+  const dayCfg = data.days[dayIdx];
+  const lastWo = getLastWorkoutForDay(dayNum);
+
+  document.getElementById('wo-day-title').textContent = dayCfg.name;
+  const now = new Date();
+  document.getElementById('wo-day-sub').textContent = now.toLocaleDateString('it-IT', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+
+  const list = document.getElementById('wo-ex-list');
+  list.innerHTML = '';
+  dayCfg.exercises.forEach((ex, i) => {
+    const div = document.createElement('div');
+    div.className = 'ex-row';
+    const v = lastWo ? (lastWo.weights[i] || '') : '';
+    div.innerHTML = '<input type="checkbox" class="ex-cb" id="wo-cb-' + i + '" onchange="toggleEx(' + i + ')">'
+      + '<span class="ex-name" id="wo-name-' + i + '">' + ex + '</span>'
+      + '<input type="text" inputmode="decimal" id="wo-w-' + i + '" placeholder="kg" value="' + v.replace(/"/g,'&quot;') + '">';
+    list.appendChild(div);
+  });
+  document.getElementById('wo-msg').textContent = '';
+}
+
+function toggleEx(i) {
+  const cb = document.getElementById('wo-cb-' + i);
+  const name = document.getElementById('wo-name-' + i);
+  name.className = 'ex-name' + (cb.checked ? ' dim' : '');
+}
+
+function saveWorkout() {
+  const dayNum = getNextDay();
+  const dayIdx = dayNum - 1;
+  const dayCfg = data.days[dayIdx];
+  const weights = {};
+  let hasAny = false;
+  dayCfg.exercises.forEach((ex, i) => {
+    const cb = document.getElementById('wo-cb-' + i);
+    if (!cb.checked) { weights[i] = ''; return; }
+    const val = document.getElementById('wo-w-' + i).value.trim();
+    if (val) hasAny = true;
+    weights[i] = val;
+  });
+  if (!hasAny) { document.getElementById('wo-msg').textContent = 'Seleziona e inserisci almeno un peso.'; return; }
+
+  data.workouts.push({ date: new Date().toISOString().slice(0,10), day: dayNum, weights: weights });
+  persistData();
+  if (!isAndroid) downloadJSON();
+  document.getElementById('wo-msg').textContent = '\u2713 Allenamento salvato!';
+  renderWorkout();
+}
+
+// ============= CONFIG =============
+function renderConfig() {
+  if (!data) return;
+  const cont = document.getElementById('config-days');
+  cont.innerHTML = '';
+  data.days.forEach((day, di) => {
+    const div = document.createElement('div');
+    div.className = 'config-day';
+    const h4 = document.createElement('h4');
+    h4.className = 'c' + (di+1);
+    const nameSpan = document.createElement('span'); nameSpan.textContent = day.name; h4.appendChild(nameSpan);
+    const editBtn = document.createElement('button');
+    editBtn.className = 'btn btn-sm btn-outline';
+    editBtn.style.cssText = 'float:right;padding:2px 8px;font-size:11px';
+    editBtn.textContent = 'rinomina';
+    editBtn.onclick = () => { const n = prompt('Nome giorno:', day.name); if (n && n.trim()) { data.days[di].name = n.trim(); renderConfig(); } };
+    h4.appendChild(editBtn); div.appendChild(h4);
+
+    day.exercises.forEach((ex, ei) => {
+      const row = document.createElement('div'); row.className = 'config-ex';
+      const inp = document.createElement('input'); inp.type = 'text'; inp.value = ex;
+      inp.onchange = () => { data.days[di].exercises[ei] = inp.value.trim(); };
+      row.appendChild(inp);
+      const del = document.createElement('button'); del.className = 'btn btn-sm btn-danger'; del.textContent = '\u2716';
+      del.onclick = () => { data.days[di].exercises.splice(ei, 1); renderConfig(); };
+      row.appendChild(del); div.appendChild(row);
+    });
+    const addBtn = document.createElement('button');
+    addBtn.className = 'btn btn-sm btn-outline add-ex-btn'; addBtn.textContent = '+ Aggiungi esercizio';
+    addBtn.onclick = () => { const n = prompt('Nome esercizio:'); if (n && n.trim()) { data.days[di].exercises.push(n.trim()); renderConfig(); } };
+    div.appendChild(addBtn); cont.appendChild(div);
+  });
+}
+
+function saveConfig() {
+  persistData();
+  if (!isAndroid) downloadJSON();
+  document.getElementById('cfg-msg').textContent = '\u2713 Configurazione salvata!';
+  setTimeout(() => document.getElementById('cfg-msg').textContent = '', 2500);
+}
+
+function exportData() {
+  downloadJSON();
+  var el = document.querySelector('.tab-cont.active #bak-msg') || document.querySelector('.tab-cont.active #sum-msg');
+  if (el) { el.textContent = '\u2713 JSON esportato nella cartella Download.'; setTimeout(function() { el.textContent = ''; }, 3000); }
+}
+
+// ============= SUMMARY =============
+function parseNum(val) {
+  if (!val || val === '\u2014') return null;
+  if (val.toLowerCase().includes('senza pesi')) return 0;
+  const m = val.match(/(\d+(?:\.\d+)?)/);
+  return m ? parseFloat(m[1]) : null;
+}
+
+function renderSummary() {
+  if (!data) return;
+  const wrap = document.getElementById('summary-wrap');
+  const flatExs = [];
+  const exDayMap = {};
+  data.days.forEach((day, di) => { day.exercises.forEach(ex => { flatExs.push(ex); exDayMap[ex] = di; }); });
+
+  if (data.workouts.length === 0) {
+    wrap.innerHTML = '<p style="color:#999;text-align:center">Nessun allenamento salvato.</p>'; return;
+  }
+
+  const dates = data.workouts.map(w => { const d = new Date(w.date+'T00:00:00'); return d.toLocaleDateString('it-IT', { day:'2-digit', month:'2-digit', year:'numeric' }); });
+  const lastNum = {};
+  const matrix = flatExs.map(() => Array(data.workouts.length).fill(''));
+  const incMatrix = flatExs.map(() => Array(data.workouts.length).fill(false));
+
+  data.workouts.forEach((w, ci) => {
+    const dayExs = data.days[w.day-1].exercises;
+    dayExs.forEach((ex, ei) => {
+      const fi = flatExs.indexOf(ex); if (fi === -1) return;
+      const raw = w.weights[ei] || '';
+      matrix[fi][ci] = raw || '\u2014';
+      const n = parseNum(raw);
+      if (n !== null) { if (fi in lastNum && n > lastNum[fi]) incMatrix[fi][ci] = true; lastNum[fi] = n; }
+    });
+  });
+
+  let html = '<table class="summary-table"><thead><tr><th>Esercizio</th>';
+  dates.forEach(d => { html += '<th>' + d + '</th>'; });
+  html += '</tr></thead><tbody>';
+
+  let lastDay = -1;
+  flatExs.forEach((ex, fi) => {
+    const dayNum = exDayMap[ex] + 1;
+    if (dayNum !== lastDay) {
+      lastDay = dayNum;
+      html += '<tr class="grp-header g' + dayNum + '"><td class="ex-name sticky">' + data.days[dayNum-1].name + '</td>';
+      for (let ci = 0; ci < data.workouts.length; ci++) html += '<td></td>';
+      html += '</tr>';
+    }
+    html += '<tr><td class="ex-name">' + ex + '</td>';
+    for (let ci = 0; ci < data.workouts.length; ci++) {
+      const val = matrix[fi][ci];
+      html += '<td class="' + (incMatrix[fi][ci] ? 'inc' : (!val || val === '\u2014' ? 'no-data' : '')) + '">' + (val||'') + '</td>';
+    }
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  wrap.innerHTML = html;
+}
+
+// ============= INIT =============
+if (isAndroid) {
+  loadFromBridge();
+} else {
+  showWelcome();
+}
+</script>
+</body>
+</html>
