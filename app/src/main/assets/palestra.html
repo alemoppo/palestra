@@ -47,6 +47,7 @@ input:focus { outline: none; border-color: #2F5496; }
 .summary-table { border-collapse: collapse; font-size: 12px; width: max-content; min-width: 100%; }
 .summary-table th, .summary-table td { border: 1px solid #ccc; padding: 5px 8px; text-align: center; white-space: nowrap; }
 .summary-table th { background: #2F5496; color: #fff; font-weight: 600; position: sticky; top: 0; }
+.summary-table th[contenteditable]:hover { background: #1d3a6e; cursor: text; }
 .summary-table .ex-name { text-align: left; font-weight: 500; position: sticky; left: 0; background: #fff; z-index: 2; }
 .summary-table .ex-name.sticky { z-index: 3; }
 .summary-table .grp-header { font-weight: 700; text-align: left; }
@@ -418,6 +419,22 @@ function onCellEdit(cell) {
   }
 }
 
+function onDateEdit(cell) {
+  var wi = parseInt(cell.getAttribute('data-wi'));
+  var val = cell.textContent.trim();
+  var m = val.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (m) {
+    var newDate = m[3] + '-' + m[2].padStart(2,'0') + '-' + m[1].padStart(2,'0');
+    data.workouts[wi].date = newDate;
+    persistData();
+  }
+  renderSummary();
+  var headers = document.querySelectorAll('#summary-wrap th[contenteditable]');
+  for (var i = 0; i < headers.length; i++) {
+    if (parseInt(headers[i].getAttribute('data-wi')) === wi) { headers[i].focus(); break; }
+  }
+}
+
 function renderSummary() {
   if (!data) return;
   var wrap = document.getElementById('summary-wrap');
@@ -448,7 +465,7 @@ function renderSummary() {
   });
 
   var html = '<table class="summary-table"><thead><tr><th>Esercizio</th>';
-  dates.forEach(function(d) { html += '<th>' + d + '</th>'; });
+  dates.forEach(function(d, ci) { html += '<th contenteditable="true" data-wi="' + ci + '" onblur="onDateEdit(this)" onkeydown="if(event.key==\'Enter\'){event.preventDefault();this.blur()}">' + d + '</th>'; });
   html += '</tr></thead><tbody>';
 
   var lastDay = -1;
