@@ -59,6 +59,8 @@ input:focus { outline: none; border-color: #2F5496; }
 .summary-table .grp-header.g3 td:first-child { background: #FCE4D6; }
 .summary-table .inc { background: #FFA500 !important; font-weight: 700; }
 .summary-table .no-data { color: #bbb; }
+.summary-table td[contenteditable]:hover { outline: 2px dashed #2F5496; outline-offset: -2px; cursor: text; }
+.summary-table td[contenteditable]:focus { outline: 2px solid #2F5496; outline-offset: -2px; background: #fffbe6; }
 .wo-msg { margin-top:8px; font-size:13px; color:#2F5496; text-align:center; }
 #welcome { position: fixed; inset: 0; background: #f5f5f5; z-index: 100; display: none; flex-direction: column; justify-content: center; align-items: center; padding: 32px; text-align: center; }
 #welcome h2 { font-size: 24px; color: #2F5496; margin-bottom: 16px; }
@@ -87,6 +89,7 @@ input:focus { outline: none; border-color: #2F5496; }
 
 <div class="tab-cont active" id="tab-workout">
   <div class="card">
+    <input type="hidden" id="wo-day" value="1">
     <div class="day-header" id="wo-day-title">Giorno 1</div>
     <div class="day-sub" id="wo-day-sub">caricamento...</div>
     <div id="wo-ex-list"></div>
@@ -218,14 +221,60 @@ function downloadJSON() {
   }
 }
 
+// persistent state for workout form across tab switches
+var savedWorkoutState = null;
+
+function saveWorkoutState() {
+  const daySel = document.getElementById('wo-day');
+  const dayNum = daySel ? parseInt(daySel.value) : 0;
+  if (!dayNum) return;
+  const dayCfg = data.days[dayNum - 1];
+  if (!dayCfg) return;
+  const checked = [], weights = [];
+  dayCfg.exercises.forEach((_, i) => {
+    const cb = document.getElementById('wo-cb-' + i);
+    const w = document.getElementById('wo-w-' + i);
+    checked[i] = cb ? cb.checked : false;
+    weights[i] = w ? w.value : '';
+  });
+  savedWorkoutState = { dayNum: dayNum, checked: checked, weights: weights };
+}
+
+function restoreWorkoutState() {
+  if (!savedWorkoutState) return;
+  const state = savedWorkoutState;
+  const daySel = document.getElementById('wo-day');
+  if (!daySel) return;
+  const curDay = parseInt(daySel.value);
+  if (curDay !== state.dayNum) return;   // day changed, don't restore
+  const dayCfg = data.days[curDay - 1];
+  if (!dayCfg) return;
+  dayCfg.exercises.forEach((_, i) => {
+    const cb = document.getElementById('wo-cb-' + i);
+    const w = document.getElementById('wo-w-' + i);
+    if (cb && i < state.checked.length) { cb.checked = state.checked[i]; }
+    if (w && i < state.weights.length) { w.value = state.weights[i]; }
+  });
+  // re-apply dimming
+  dayCfg.exercises.forEach((_, i) => {
+    const cb = document.getElementById('wo-cb-' + i);
+    const nameEl = document.getElementById('wo-name-' + i);
+    if (cb && nameEl) { nameEl.style.opacity = cb.checked ? '0.45' : '1'; }
+  });
+}
+
 // ============= TABS =============
 document.querySelectorAll('.tab').forEach(tab => {
   tab.addEventListener('click', () => {
+    // save workout state before leaving the tab
+    if (document.getElementById('tab-workout').classList.contains('active')) {
+      saveWorkoutState();
+    }
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     document.querySelectorAll('.tab-cont').forEach(t => t.classList.remove('active'));
     tab.classList.add('active');
     document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
-    if (tab.dataset.tab === 'workout') renderWorkout();
+    if (tab.dataset.tab === 'workout') { renderWorkout(); restoreWorkoutState(); }
     if (tab.dataset.tab === 'summary') renderSummary();
   });
 });
@@ -250,6 +299,7 @@ function renderWorkout() {
   const dayCfg = data.days[dayIdx];
   const lastWo = getLastWorkoutForDay(dayNum);
 
+  document.getElementById('wo-day').value = dayNum;
   document.getElementById('wo-day-title').textContent = dayCfg.name;
   const now = new Date();
   document.getElementById('wo-day-sub').textContent = now.toLocaleDateString('it-IT', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
@@ -351,50 +401,75 @@ function parseNum(val) {
   return m ? parseFloat(m[1]) : null;
 }
 
+function onCellEdit(cell) {
+  var wi = parseInt(cell.getAttribute('data-w'));
+  var ei = parseInt(cell.getAttribute('data-e'));
+  var newVal = cell.textContent.trim();
+  data.workouts[wi].weights[ei] = newVal;
+  persistData();
+  renderSummary();
+  // keep focus on the edited cell after re-render
+  var all = document.querySelectorAll('#summary-wrap td[contenteditable]');
+  for (var i = 0; i < all.length; i++) {
+    if (parseInt(all[i].getAttribute('data-w')) === wi && parseInt(all[i].getAttribute('data-e')) === ei) {
+      all[i].focus();
+      break;
+    }
+  }
+}
+
 function renderSummary() {
   if (!data) return;
-  const wrap = document.getElementById('summary-wrap');
-  const flatExs = [];
-  const exDayMap = {};
-  data.days.forEach((day, di) => { day.exercises.forEach(ex => { flatExs.push(ex); exDayMap[ex] = di; }); });
+  var wrap = document.getElementById('summary-wrap');
+  var flatExs = [];
+  var exDayMap = {};
+  data.days.forEach(function(day, di) { day.exercises.forEach(function(ex) { flatExs.push(ex); exDayMap[ex] = di; }); });
 
   if (data.workouts.length === 0) {
     wrap.innerHTML = '<p style="color:#999;text-align:center">Nessun allenamento salvato.</p>'; return;
   }
 
-  const dates = data.workouts.map(w => { const d = new Date(w.date+'T00:00:00'); return d.toLocaleDateString('it-IT', { day:'2-digit', month:'2-digit', year:'numeric' }); });
-  const lastNum = {};
-  const matrix = flatExs.map(() => Array(data.workouts.length).fill(''));
-  const incMatrix = flatExs.map(() => Array(data.workouts.length).fill(false));
+  var dates = data.workouts.map(function(w) { var d = new Date(w.date+'T00:00:00'); return d.toLocaleDateString('it-IT', { day:'2-digit', month:'2-digit', year:'numeric' }); });
+  var lastNum = {};
+  var matrix = flatExs.map(function() { return Array(data.workouts.length).fill(''); });
+  var incMatrix = flatExs.map(function() { return Array(data.workouts.length).fill(false); });
+  var cellMeta = flatExs.map(function() { return Array(data.workouts.length).fill(null); });
 
-  data.workouts.forEach((w, ci) => {
-    const dayExs = data.days[w.day-1].exercises;
-    dayExs.forEach((ex, ei) => {
-      const fi = flatExs.indexOf(ex); if (fi === -1) return;
-      const raw = w.weights[ei] || '';
+  data.workouts.forEach(function(w, ci) {
+    var dayExs = data.days[w.day-1].exercises;
+    dayExs.forEach(function(ex, ei) {
+      var fi = flatExs.indexOf(ex); if (fi === -1) return;
+      var raw = w.weights[ei] || '';
       matrix[fi][ci] = raw || '\u2014';
-      const n = parseNum(raw);
+      cellMeta[fi][ci] = { wi: ci, ei: ei };
+      var n = parseNum(raw);
       if (n !== null) { if (fi in lastNum && n > lastNum[fi]) incMatrix[fi][ci] = true; lastNum[fi] = n; }
     });
   });
 
-  let html = '<table class="summary-table"><thead><tr><th>Esercizio</th>';
-  dates.forEach(d => { html += '<th>' + d + '</th>'; });
+  var html = '<table class="summary-table"><thead><tr><th>Esercizio</th>';
+  dates.forEach(function(d) { html += '<th>' + d + '</th>'; });
   html += '</tr></thead><tbody>';
 
-  let lastDay = -1;
-  flatExs.forEach((ex, fi) => {
-    const dayNum = exDayMap[ex] + 1;
+  var lastDay = -1;
+  flatExs.forEach(function(ex, fi) {
+    var dayNum = exDayMap[ex] + 1;
     if (dayNum !== lastDay) {
       lastDay = dayNum;
       html += '<tr class="grp-header g' + dayNum + '"><td class="ex-name sticky">' + data.days[dayNum-1].name + '</td>';
-      for (let ci = 0; ci < data.workouts.length; ci++) html += '<td></td>';
+      for (var ci = 0; ci < data.workouts.length; ci++) html += '<td></td>';
       html += '</tr>';
     }
     html += '<tr><td class="ex-name">' + ex + '</td>';
-    for (let ci = 0; ci < data.workouts.length; ci++) {
-      const val = matrix[fi][ci];
-      html += '<td class="' + (incMatrix[fi][ci] ? 'inc' : (!val || val === '\u2014' ? 'no-data' : '')) + '">' + (val||'') + '</td>';
+    for (var ci = 0; ci < data.workouts.length; ci++) {
+      var val = matrix[fi][ci];
+      var meta = cellMeta[fi][ci];
+      var editable = meta && val && val !== '\u2014';
+      var attrs = 'class="' + (incMatrix[fi][ci] ? 'inc' : (!val || val === '\u2014' ? 'no-data' : '')) + '"';
+      if (editable) {
+        attrs += ' contenteditable="true" data-w="' + meta.wi + '" data-e="' + meta.ei + '" onblur="onCellEdit(this)"';
+      }
+      html += '<td ' + attrs + '>' + (val||'') + '</td>';
     }
     html += '</tr>';
   });
